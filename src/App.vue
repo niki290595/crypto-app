@@ -15,6 +15,7 @@
 <script>
 import moment from 'moment';
 import axios from 'axios';
+import Pusher from 'pusher-js';
 import Intro from './components/Intro';
 import Current from './components/Current';
 import Previous from './components/Previous';
@@ -77,6 +78,19 @@ export default {
       this.fetchDataFor('fourDays', 4);
       this.fetchDataFor('fiveDays', 5);
       this.fetchDataForToday();
+
+      const pusher = new Pusher('7b2eb08e21971e603288', {
+        cluster: 'eu',
+        encrypted: true,
+      });
+      const channel = pusher.subscribe('price-updates');
+      channel.bind('coin-updates', (data) => {
+        this.currentCurrency = {
+          BTC: data.coin.BTC.USD,
+          ETH: data.coin.ETH.USD,
+          LTC: data.coin.LTC.USD,
+        };
+      });
     }
   },
 };
