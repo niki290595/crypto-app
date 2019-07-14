@@ -13,6 +13,8 @@
 </template>
 
 <script>
+import moment from 'moment';
+import axios from 'axios';
 import Intro from './components/Intro';
 import Current from './components/Current';
 import Previous from './components/Previous';
@@ -20,23 +22,62 @@ import Previous from './components/Previous';
 export default {
   name: 'app',
   components: { Intro, Current, Previous },
-  data() {
-    return {
-      currentCurrency: { BTC: '', ETH: '', LTC: '' },
-      previousCurrency: {
-        yesterday: {},
-        twoDays: {},
-        threeDays: {},
-        fourDays: {},
-        fiveDays: {},
-      },
-    };
-  },
+  data: () => ({
+    currentCurrency: { BTC: '', ETH: '', LTC: '' },
+    previousCurrency: {
+      yesterday: {},
+      twoDays: {},
+      threeDays: {},
+      fourDays: {},
+      fiveDays: {},
+    },
+  }),
   methods: {
-    // Stub
+    fetchDataFor(key, daysAgo) {
+      const date = moment().subtract(daysAgo, 'days').unix();
+      const fetch = (curr, _date) => axios.get(`https://min-api.cryptocompare.com/data/pricehistorical?fsym=${curr}&tsyms=USD&ts=${_date}`);
+      axios.all([fetch('BTC', date), fetch('ETH', date), fetch('LTC', date)])
+        .then(axios.spread((BTC, ETH, LTC) => {
+          this.previousCurrency[key] = {
+            BTC: BTC.data.BTC.USD,
+            LTC: LTC.data.LTC.USD,
+            ETH: ETH.data.ETH.USD,
+            DATE: moment(date).format('MMMM Do YYYY'),
+          };
+          localStorage.setItem(`${key}Prices`, JSON.stringify(this.previousCurrency[key]));
+        }));
+    },
+    fetchDataForToday() {
+      const url = 'https://min-api.cryptocompare.com/data/pricemulti?fsyms=BTC,ETH,LTC&tsyms=USD';
+      axios.get(url).then((res) => {
+        localStorage.setItem('BTC', this.currentCurrency.BTC = res.data.BTC.USD);
+        localStorage.setItem('ETH', this.currentCurrency.ETH = res.data.ETH.USD);
+        localStorage.setItem('LTC', this.currentCurrency.LTC = res.data.LTC.USD);
+      });
+    },
   },
   created() {
-    // Stub
+    if (!navigator.onLine) {
+      this.currentCurrency = {
+        BTC: localStorage.getItem('BTC'),
+        ETH: localStorage.getItem('ETH'),
+        LTC: localStorage.getItem('LTC'),
+      };
+      this.previousCurrency = {
+        yesterday: JSON.parse(localStorage.getItem('yesterdayPrices')),
+        twoDays: JSON.parse(localStorage.getItem('twoDaysPrices')),
+        threeDays: JSON.parse(localStorage.getItem('threeDaysPrices')),
+        fourDays: JSON.parse(localStorage.getItem('fourDaysPrices')),
+        fiveDays: JSON.parse(localStorage.getItem('fiveDaysPrices')),
+      };
+    } else {
+      this.fetchDataFor('yesterday', 1);
+      this.fetchDataFor('twoDays', 2);
+      this.fetchDataFor('threeDays', 3);
+      this.fetchDataFor('fourDays', 4);
+      this.fetchDataFor('fiveDays', 5);
+      this.fetchDataForToday();
+    }
   },
 };
 </script>
